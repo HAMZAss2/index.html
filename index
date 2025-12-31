@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2026 | For Salma</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&display=swap');
+        :root { --primary: #00d2ff; --gold: #ffb703; --bg: #050505; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body, html { width: 100%; height: 100%; background: var(--bg); color: white; font-family: 'Montserrat', sans-serif; overflow: hidden; touch-action: none; }
+        
+        .bg-glow { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100vw; height: 100vh; background: radial-gradient(circle, rgba(0, 210, 255, 0.1) 0%, transparent 70%); z-index: 0; }
+        canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        #ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: flex; justify-content: center; align-items: center; }
+        
+        .screen { display: none; flex-direction: column; align-items: center; text-align: center; width: 88%; animation: fadeIn 0.4s ease-out; }
+        .active { display: flex; }
+        
+        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); padding: 35px 25px; border-radius: 30px; border: 1px solid rgba(255, 255, 255, 0.1); width: 100%; max-height: 85vh; display: flex; flex-direction: column; align-items: center; }
+        
+        .btn { background: #fff; color: #000; border: none; padding: 18px; border-radius: 12px; font-size: 1rem; font-weight: 800; margin-top: 15px; width: 100%; max-width: 280px; cursor: pointer; }
+        .btn-opt { background: rgba(255, 255, 255, 0.05); color: white; border: 1px solid rgba(255, 255, 255, 0.2); margin-top: 10px; font-weight: 400; }
+        .btn-back { background: transparent; color: rgba(255,255,255,0.4); border: none; margin-top: 20px; font-size: 0.8rem; text-decoration: underline; cursor: pointer; }
+
+        #game-hud { position: absolute; top: 60px; width: 85%; display: none; z-index: 11; }
+        .score-txt { font-size: 2.5rem; font-weight: 800; color: var(--primary); }
+        .bar-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-top: 5px; }
+        #bar-fill { width: 0%; height: 100%; background: var(--primary); border-radius: 10px; transition: 0.2s; }
+
+        .scroll-area { overflow-y: auto; text-align: left; font-size: 0.95rem; line-height: 1.8; width: 100%; color: #ddd; padding-right: 5px; }
+        .magic-word { color: var(--primary); font-weight: 800; text-shadow: 0 0 10px rgba(0, 210, 255, 0.5); }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .shake { animation: shake 0.3s ease-in-out; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+    </style>
+</head>
+<body>
+
+    <div class="bg-glow"></div>
+    <canvas id="canvas"></canvas>
+
+    <div id="ui-layer">
+        <div id="scr-start" class="screen active">
+            <h1 style="font-size: 1.6rem; letter-spacing: 3px; margin-bottom: 20px;">FOR SALMA.</h1>
+            <div class="glass-card">
+                <p style="opacity: 0.7; margin-bottom: 25px;">2025 was special. Let's see if you're ready for 2026...</p>
+                <button class="btn" onclick="startGame()">Start the Year ✨</button>
+            </div>
+        </div>
+
+        <div id="game-hud">
+            <div class="score-txt" id="score-val">0 / 40</div>
+            <div class="bar-bg"><div id="bar-fill"></div></div>
+        </div>
+
+        <div id="scr-rizz" class="screen">
+            <div class="glass-card">
+                <h2 id="rizz-title" style="color:var(--primary); font-size: 1.2rem;">Connection</h2>
+                <p id="rizz-q" style="margin: 20px 0; font-weight: 600;"></p>
+                <div id="rizz-options" style="width: 100%;"></div>
+                <button id="btn-prev" class="btn-back" onclick="prevQuestion()">← Previous</button>
+            </div>
+        </div>
+
+        <div id="scr-final" class="screen">
+            <div class="glass-card">
+                <div class="scroll-area" id="type-area"></div>
+                <button class="btn" style="background: var(--primary); color: white; display:none; margin-top: 20px;" id="btn-replay" onclick="location.reload()">Happy New Year ❤️</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, stars = [], gameActive = false, score = 0;
+        const target = 40;
+
+        function init() {
+            width = window.innerWidth; height = window.innerHeight;
+            canvas.width = width * window.devicePixelRatio;
+            canvas.height = height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+        window.addEventListener('resize', init);
+        init();
+
+        class Star {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = Math.random() * (width - 40) + 20;
+                this.y = -50;
+                this.speed = Math.random() * 3 + 2.5;
+                this.size = Math.random() * 10 + 20;
+            }
+            update() { this.y += this.speed; if(this.y > height) this.reset(); }
+            draw() { ctx.font = `${this.size}px serif`; ctx.fillText('✨', this.x, this.y); }
+        }
+
+        function startGame() {
+            document.getElementById('scr-start').classList.remove('active');
+            document.getElementById('game-hud').style.display = 'block';
+            gameActive = true;
+            for(let i=0; i<6; i++) stars.push(new Star());
+            animate();
+        }
+
+        window.addEventListener('touchstart', (e) => {
+            if(!gameActive) return;
+            const t = e.touches[0];
+            stars.forEach(s => {
+                if(Math.hypot(s.x - t.clientX, s.y - t.clientY) < 60) {
+                    s.reset(); score++; 
+                    document.getElementById('score-val').innerText = score + " / " + target;
+                    document.getElementById('bar-fill').style.width = (score/target*100) + '%';
+                    if(score >= target) { gameActive = false; document.getElementById('game-hud').style.display = 'none'; startQuestions(); }
+                }
+            });
+        });
+
+        const questions = [
+            {
+                q: "Wach ana 3ziz 3lk?",
+                a: [
+                    { t: "Yes", pass: true },
+                    { t: "No", pass: false, msg: "Yaaaak wakha... 🙄" },
+                    { t: "Bzzf a hamza", pass: true }
+                ]
+            },
+            {
+                q: "Wach kansed3ek?",
+                a: [
+                    { t: "Laa laa", pass: true },
+                    { t: "Yes bzf", pass: false, msg: "Sf man3awdch... 😔" },
+                    { t: "Mara mara", pass: false, msg: "Imta? bach manb9ach... 🤨" }
+                ]
+            },
+            {
+                q: "Atb9ay m3aya dima?",
+                a: [
+                    { t: "Yes", pass: true },
+                    { t: "Hmm m3rftch", pass: true, msg: "Afkri mzyan... 😏" },
+                    { t: "Tab3aaan", pass: true }
+                ]
+            }
+        ];
+
+        let qIdx = 0;
+        function startQuestions() {
+            document.getElementById('scr-rizz').classList.add('active');
+            showQuestion();
+        }
+
+        function showQuestion() {
+            const data = questions[qIdx];
+            document.getElementById('rizz-q').innerText = data.q;
+            document.getElementById('btn-prev').style.display = qIdx === 0 ? 'none' : 'block';
+            const box = document.getElementById('rizz-options');
+            box.innerHTML = '';
+            
+            data.a.forEach(opt => {
+                const b = document.createElement('button');
+                b.className = 'btn btn-opt';
+                b.innerText = opt.t;
+                b.onclick = () => {
+                    if(opt.pass) {
+                        if(opt.msg) alert(opt.msg);
+                        qIdx++;
+                        if(qIdx < questions.length) showQuestion();
+                        else showFinal();
+                    } else {
+                        document.querySelector('.glass-card').classList.add('shake');
+                        setTimeout(() => document.querySelector('.glass-card').classList.remove('shake'), 300);
+                        alert(opt.msg);
+                    }
+                };
+                box.appendChild(b);
+            });
+        }
+
+        function prevQuestion() {
+            if(qIdx > 0) { qIdx--; showQuestion(); }
+        }
+
+        function showFinal() {
+            document.getElementById('scr-rizz').classList.remove('active');
+            document.getElementById('scr-final').classList.add('active');
+            
+            const msg = `Salma dewezt m3ak 3am zwin bzf, o had l'3am ki3ni liya bzf, o dwina fih bezzaf... \n\n[M]khassatin anani welit kandwi m3ak bhala kandwi m3a rassi[M], hitach l9itek katfahmini ktar makanfham rassi.\n\nKanchokrek bzf hitach knti m3aya, o nti [M]atb9ay a7la salma[M] o ahsan ahsan S chftha ya 9aaamaron. ✨\n\nO nchaleh tb9ay kadwi m3aya f 2026.`;
+
+            let i = 0; let magic = false; const area = document.getElementById('type-area');
+            function type() {
+                if(i < msg.length) {
+                    if(msg.slice(i, i+3) === "[M]") { magic = !magic; i += 3; type(); return; }
+                    let char = msg.charAt(i);
+                    let span = char === '\n' ? document.createElement('br') : document.createElement('span');
+                    if(char !== '\n') { span.innerText = char; if(magic) span.className = 'magic-word'; }
+                    area.appendChild(span); i++; area.scrollTop = area.scrollHeight; setTimeout(type, 50);
+                } else { document.getElementById('btn-replay').style.display = 'block'; }
+            }
+            type();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            if(gameActive) { stars.forEach(s => { s.update(); s.draw(); }); requestAnimationFrame(animate); }
+        }
+    </script>
+</body>
+</html>
